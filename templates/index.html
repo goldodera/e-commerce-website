@@ -40,10 +40,10 @@
 <!--navbar section-->
 <nav class="navbar navbar-expand-md bg-warning-subtle">
   <div class="container-fluid">
-      <img src="static/proj_src/logo.png" class="bi" width="50" height="50" style="border-radius: 100%" alt="logo image">
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarTogglerDemo03" aria-controls="navbarTogglerDemo03" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
+    <a class="navbar-brand"><img src="static/proj_src/logo.png" width="40px" height="40px" style="border-radius: 100%" alt="logo image"></a>
     <div class="collapse navbar-collapse" id="navbarTogglerDemo03">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
@@ -59,7 +59,7 @@
       <div class="cart" style="margin-right: 40px;">
         <a href="/cart" style="text-decoration: none;">
           <i class="bi bi-cart-check" style="font-size: 30px; float: left; color: black;"></i>
-          <span style="color: red; font-size: 20px;">0</span>
+          <span style="color: red; font-size: 20px;">{{cart_count}}</span>
        </div>
       <form class>
         <a class="btn btn-primary" href="/login">Login</a>

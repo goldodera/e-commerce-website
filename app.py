@@ -54,10 +54,10 @@ def contact():
 
 @app.route('/')
 def home():
-    #cart_count = 0
-    #cart_count = get_cart_count()
+    cart_count = 0
+    cart_count = get_cart_count()
     products_for_sale = show_products_on_the_index()
-    return render_template('index.html', products = products_for_sale)
+    return render_template('index.html', products = products_for_sale, cart_count = cart_count)
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
@@ -186,6 +186,192 @@ def get_products_from_DB():
 app.config['ProductImagePath'] = 'static/product_imgs'
 
 
+# FOR CART SESSION
+
+@app.route('/cart')
+def cart():
+    useremail = session.get('user')
+    if useremail:
+        cart_items = get_cart_items(useremail)
+        if cart_items:
+            #calculate total sum
+            total = sum(int(cart_items[4]) for cart_items in cart_items)
+            return render_template('cart.html', cart=cart_items, totalsum=total)
+        else:
+            return render_template('cart.html')
+    flash("login to start shopping or create account", "warning")
+    return render_template('cart.html')
+
+
+# GET CART ITEMS FOR THE USER WHO HAS LOGIN IN
+def get_cart_items(email):
+    try:
+        with sqlite3.connect(db_location) as myconnect:
+            cursor = myconnect.cursor()
+            cart = cursor.execute("select product_ID, product_name, qty, price, total_price from mycart where email=?", (email,)).fetchall()
+
+            if cart:
+                return cart
+            else:
+                flash("Your Cart is empty, Please Shop Now!", "warning")
+                return None
+
+    except sqlite3.Error as error:
+        flash(str(error), "danger")
+        myconnect.rollback()
+    except Exception as error:
+        flash(str(error), "danger")
+
+
+@app.route("/Add_to_cart/<id>")
+def Add_to_cart(id):
+    if 'user' not in session:
+        flash("You must log in to buy something", "warning")
+        return redirect(url_for('home'))
+    else:
+        useremail = session.get('user')
+        #no_of_item = get_cart_count(useremail)
+        try:
+            with sqlite3.connect(db_location) as myconnect:
+                cursor = myconnect.cursor()
+                check_cart = cursor.execute("select price, qty from mycart where email =? and product_ID = ?", (useremail,id)).fetchone()
+                if check_cart:
+                    price = int(check_cart[0])
+                    qty = int(check_cart[1]) + 1
+                    total = price * qty
+                    qty =str(qty)
+                    total = str(total)
+                    cursor.execute("UPDATE mycart SET qty=?, total_price=? where email =? and product_id =?",(qty,total,useremail,id))
+                    get_cart_count()
+                    flash("Product Qty Increased", "info")
+                    redirect(url_for('home'))
+                else:
+                    get_product = cursor.execute("select product_name, product_price from roof where product_id =?",(id,)).fetchone()
+                    if get_product:
+                        product_name = get_product[0]
+                        product_price = int(get_product[1])
+                        qty = 1
+                        total = str(product_price * qty)
+                        cursor.execute("insert into mycart(product_id, product_name, price, qty, email, total_price) values (?,?,?,?,?,?)", (id, product_name, product_price, qty, useremail, total))
+                        myconnect.commit()
+                        #get_cart_count()
+                        flash(f"Product {product_name} Added to the Cart", "info")
+                        return redirect(url_for('home'))
+        except sqlite3.Error as error:
+            flash(str(error), "danger")
+    return redirect(url_for('home'))
+
+
+
+def get_cart_count():
+    cart_count = 0
+    if 'user' in session:
+        useremail = session.get('user')
+        try:
+            with sqlite3.connect(db_location) as myconnect:
+                cursor = myconnect.cursor()
+                cart_count = cursor.execute("select sum(qty) from mycart where email=?", (useremail,)).fetchone()
+
+                if cart_count:
+                    return cart_count[0]
+                else:
+                    flash("Your Cart is empty, Please Shop Now!", "warning")
+                    cart_count = 0
+                    return cart_count
+        except sqlite3.Error as error:
+            flash(str(error), "danger")
+            myconnect.rollback()
+        except Exception as error:
+            flash(str(error), "danger")
+    else:
+        return cart_count
+
+
+#INCREASE PRODUCT IN CART
+@app.route("/increase_Qty/<id>")
+def increase_Qty(id):
+    if 'user' not in session:
+        flash("You must log in to buy something", "warning")
+        return redirect(url_for('home'))
+    else:
+        useremail = session.get('user')
+        # no_of_item = get_cart_count(useremail
+        try:
+            with sqlite3.connect(db_location) as myconnect:
+                cursor = myconnect.cursor()
+                check_cart = cursor.execute("select price, qty from mycart where email =? and product_id =?", (useremail,id)).fetchone()
+                if check_cart:
+                    price = int(check_cart[0])
+                    qty = int(check_cart[1]) + 1
+                    total = price * qty
+                    qty = str(qty)
+                    total = str(total)
+                    cursor.execute("UPDATE mycart SET qty=?, total_price=? where email =? and product_id =?",(qty, total, useremail, id))
+                    get_cart_count()
+                    #flash("Product Qty Increased", "info")
+                    redirect(url_for('cart'))
+        except sqlite3.Error as error:
+                flash(str(error), "danger")
+    return redirect(url_for('cart'))
+
+
+#DECREASE PRODUCT IN CART
+@app.route("/decrease_Qty/<id>")
+def decrease_Qty(id):
+    if 'user' not in session:
+        flash("You must log in to buy something", "warning")
+        return redirect(url_for('home'))
+    else:
+        useremail = session.get('user')
+        # no_of_item = get_cart_count(useremail
+        try:
+            with sqlite3.connect(db_location) as myconnect:
+                cursor = myconnect.cursor()
+                check_cart = cursor.execute("select price, qty from mycart where email =? and product_ID =?", (useremail,id)).fetchone()
+                if check_cart:
+                    price = int(check_cart[0])
+                    qty = int(check_cart[1]) - 1
+                    total = price * qty
+                    qty = str(qty)
+                    total = str(total)
+                    # if qty = 0, delete such product from the cart table
+                    if int(qty) == 0:
+                        cursor.execute("delete from mycart where email =? and product_ID = ?", (useremail, id))
+                    else:
+                        cursor.execute("UPDATE mycart SET qty=?, total_price=? where email =? and product_id =?",(qty, total, useremail, id))
+                        get_cart_count()
+                        redirect(url_for('cart'))
+        except sqlite3.Error as error:
+                flash(str(error), "danger")
+        finally:
+            myconnect.close()
+    return redirect(url_for('cart'))
+
+
+#Delete product
+@app.route('/delete/<id>')
+def delete(id):
+    if 'user' not in session:
+        flash("You must log in to buy something", "warning")
+        return redirect(url_for('home'))
+    else:
+        useremail = session.get('user')
+        delete_product_from_cart(useremail, id)
+    return redirect(url_for('cart'))
+
+#delete function
+def delete_product_from_cart(email, id):
+    try:
+        with sqlite3.connect(db_location) as myconnect:
+            cursor = myconnect.cursor()
+            cursor.execute("delete from mycart where email =? and product_ID = ?", (email, id))
+            redirect(url_for('cart'))
+    except sqlite3.Error as error:
+        flash(str(error), "danger")
+    finally:
+        myconnect.close()
+
+
 if __name__ == ('__main__'):
     create_DB()
-    app.run(host='0.0.0.0', debug=True)
+    app.run(debug=True)
